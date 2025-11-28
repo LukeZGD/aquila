@@ -1,7 +1,6 @@
 #include "common.h"
+#include "oob_entry.h"
 #include "util.h"
-#include "screen.h"
-#include "install.h"
 
 int create_file(const char *path, mode_t mode, uid_t uid, gid_t gid) {
     if (access(path, F_OK) == 0) {
@@ -33,7 +32,7 @@ int set_file_permissions(const char *path, mode_t mode, uid_t uid, gid_t gid) {
 void *load_file(const char *path, size_t *size) {
     int fd = open(path, O_RDONLY);
     if (fd == -1) return NULL;
-    
+
     *size = lseek(fd, 0, SEEK_END);
     lseek(fd, 0, SEEK_SET);
 
@@ -91,7 +90,7 @@ int edit_plist(const char *path, void (^action)(CFMutableDictionaryRef plist)) {
         } else {
             plist_data = CFPropertyListCreateData(NULL, dict, kCFPropertyListXMLFormat_v1_0, 0, NULL);
         }
-        
+
         if (plist_data != NULL) {
             fwrite((void *)CFDataGetBytePtr(plist_data), CFDataGetLength(plist_data), 1, file);
             fflush(file);
@@ -118,11 +117,11 @@ int launchctl_unsetenv(void) {
     int status = -1;
     int rv = posix_spawn(&pid, "/bin/launchctl", NULL, NULL, args, NULL);
     if (rv != 0 || pid == -1) goto done;
-    
+
     do { if (waitpid(pid, &status, 0) == -1) goto done; }
     while (!WIFEXITED(status) && !WIFSIGNALED(status));
 
-done:
+    done:
     free(args);
     return status;
 }
@@ -142,11 +141,11 @@ int run_tar(const char *tar_path, const char *output_path) {
     int status = -1;
     int rv = posix_spawn(&pid, "/bin/tar", NULL, NULL, args, NULL);
     if (rv != 0 || pid == -1) goto done;
-    
+
     do { if (waitpid(pid, &status, 0) == -1) goto done; }
     while (!WIFEXITED(status) && !WIFSIGNALED(status));
 
-done:
+    done:
     free(args);
     return status;
 }
@@ -206,7 +205,7 @@ int show_non_default_apps(void) {
 
 int install_jailbreak(void) {
     bool no_bootstrap_install = false;
-    if (access("/.aquila_installed", F_OK) == 0 || 
+    if (access("/.aquila_installed", F_OK) == 0 ||
         access("/Applications/Cydia.app/Cydia", F_OK) == 0 ||
         access("/.cydia_no_stash", F_OK) == 0) no_bootstrap_install = true;
 
@@ -250,7 +249,7 @@ int install_jailbreak(void) {
 
             bzero(path_buf, PATH_MAX);
             snprintf(path_buf, PATH_MAX, "/Library/LaunchDaemons/%s", entry->d_name);
-            
+
             chmod(path_buf, 0644);
             chown(path_buf, 0, 0);
         }

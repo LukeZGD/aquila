@@ -5,7 +5,6 @@
 #include "patchfinder.h"
 #include "patches.h"
 #include "install.h"
-#include "screen.h"
 
 int load_run_commands(void) {
     DIR *dir = opendir("/etc/rc.d");
@@ -65,7 +64,6 @@ int start_daemons(void) {
 int main(void) {
     setuid(0);
     setgid(0);
-    draw_splash_screen("/private/var/aquila/splashscreen.jp2");
 
     if (run_exploit() != 0) {
         print_log("[-] exploit failed\n");
