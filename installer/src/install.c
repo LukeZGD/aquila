@@ -1,6 +1,7 @@
 #include "common.h"
 #include "oob_entry.h"
 #include "util.h"
+#include "install.h"
 
 int create_file(const char *path, mode_t mode, uid_t uid, gid_t gid) {
     if (access(path, F_OK) == 0) {
