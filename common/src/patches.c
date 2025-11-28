@@ -1,71 +1,12 @@
 #include "common.h"
 #include "util.h"
-#include "exploit.h"
+#include "oob_entry.h"
 #include "memory.h"
 #include "patchfinder.h"
 #include "patches.h"
 
 static void *kernel_data = NULL;
 static size_t kernel_data_size = 0xffe000;
-
-int patch_page_table(patches_t *patches, uint32_t page) {
-    uint32_t idx = page >> 20;
-    uint32_t entry = patches->l1_page_table[idx];
-
-    if (entry == 0) {
-        entry = kread32(patches->tte_virt + (idx * 4));
-        patches->l1_page_table[idx] = entry;
-    }
-
-    if ((entry & 0x3) == 2) {
-        if ((idx << 20) == ((page >> 20) << 20)) {
-            entry &= ~(1 << 15);
-            kwrite32(patches->tte_virt + (idx * 4), entry);
-            goto done;
-        }
-    } else if ((entry & 0x3) == 1) {
-        uint32_t page_table_pa = (entry >> 10) << 10;
-        uint32_t page_table_va = (page_table_pa - patches->kern_phys_base) + kinfo->kernel_base;
-
-        int l2_idx = (page >> 12) & 0xff;
-        uint32_t l2_entry = kread32(page_table_va + (l2_idx * 4));
-
-        if ((l2_entry & 0x3) == 1 || (l2_entry & 0x2) == 2) {
-            if (((idx << 20) + (l2_idx << 12)) == page) {
-                l2_entry &= ~(1 << 9);
-                kwrite32(page_table_va + (l2_idx * 4), l2_entry);
-                goto done;
-            }
-        }
-    }
-
-done:
-    usleep(100000);
-    return 0;
-}
-
-void kwrite_buf_exec(patches_t *patches, uint32_t addr, void *data, size_t size) {
-    uint32_t page = (addr & ~0xfff);
-    uint32_t test_read = 0;
-
-    if (patch_page_table(patches, page) == 0) {
-        kwrite_buf(addr, data, size);
-        
-        for (int i = 0; i < 10; i++) {
-            test_read = kread32(addr);
-            usleep(10000);
-        }
-    }
-}
-
-void kwrite16_exec(patches_t *patches, uint32_t addr, uint16_t val) {
-    kwrite_buf_exec(patches, addr, &val, 2);
-}
-
-void kwrite32_exec(patches_t *patches, uint32_t addr, uint32_t val) {
-    kwrite_buf_exec(patches, addr, &val, 4);
-}
-
 
 uint32_t find_patch_offset(uint32_t (*func)(uint32_t, uint8_t *, size_t)) {
     uint32_t addr = func(kinfo->kernel_base, kernel_data, kernel_data_size);
@@ -120,9 +61,9 @@ int patch_kernel(void) {
     kwrite8(patches->i_can_has_debugger_1, 1);
     kwrite8(patches->i_can_has_debugger_2, 1);
 
-    kwrite16_exec(patches, patches->vm_map_enter_patch, 0xbf00);
-    kwrite16_exec(patches, patches->vm_map_protect_patch, 0xe005);
-    kwrite16_exec(patches, patches->tfp0_patch, 0xe006);
+    kwrite16_exec(patches->vm_map_enter_patch, 0xbf00);
+    kwrite16_exec(patches->vm_map_protect_patch, 0xe005);
+    kwrite16_exec(patches->tfp0_patch, 0xe006);
     set_bootargs(patches, "cs_enforcement_disable=1");
 
     uint8_t *sb_eval_trampoline_addr = (uint8_t *)(((uint32_t)&sb_eval_trampoline) & ~1);
@@ -161,8 +102,8 @@ int patch_kernel(void) {
         *((uint32_t*)(hook_data + ((int32_t)&sb_eval_hook_vn_getpath - (int32_t)sb_eval_hook_addr))) = patches->vn_getpath;
         *((uint32_t*)(hook_data + ((int32_t)&sb_eval_hook_memcmp - (int32_t)sb_eval_hook_addr))) = patches->memcmp;
 
-        kwrite_buf_exec(patches, (kinfo->kernel_base + 0x700), hook_data, hook_size);
-        kwrite_buf_exec(patches, patches->sb_patch, trampoline, sb_eval_trampoline_len);
+        kwrite_buf_exec((kinfo->kernel_base + 0x700), hook_data, hook_size);
+        kwrite_buf_exec(patches->sb_patch, trampoline, sb_eval_trampoline_len);
         free(hook_data);
     }
     

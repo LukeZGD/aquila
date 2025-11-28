@@ -1,6 +1,6 @@
 #include "common.h"
 #include "util.h"
-#include "exploit.h"
+#include "oob_entry.h"
 #include "memory.h"
 #include "patchfinder.h"
 #include "patches.h"
@@ -65,7 +65,7 @@ int main(void) {
     setuid(0);
     setgid(0);
 
-    if (run_exploit() != 0) {
+    if (run_exploit(1024) != 0) {
         print_log("[-] exploit failed\n");
         usleep(100000);
         exit(0);
